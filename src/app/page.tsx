@@ -1,101 +1,208 @@
-import Image from "next/image";
+"use client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { FormEventHandler, useState } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useTodo } from "@/context/todoContext";
+import { Edit2Icon, Trash } from "lucide-react";
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  DragEndEvent,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableItem } from "@/components/SortableItem";
+import { CustomPagination } from "@/components/CustomPagination";
 
-export default function Home() {
+type TodoStatus = "Pending" | "Success";
+
+interface TodoData {
+  id: string;
+  text: string;
+  status: TodoStatus;
+}
+
+export default function Todo() {
+  const { data, add, edit, remove, dragData } = useTodo(); // Add setData to handle reordering
+  const [value, setValue] = useState<TodoData>({
+    id: "0",
+    text: "",
+    status: "Pending",
+  });
+  const [currPage, setCurrPage] = useState<number>(1);
+  const totalpage = Math.ceil(data.length / 10);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor),
+    useSensor(TouchSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      const oldIndex = data.findIndex((item) => item.id === active.id);
+      const newIndex = data.findIndex((item) => item.id === over?.id);
+      const newData = arrayMove(data, oldIndex, newIndex);
+      dragData(newData);
+    }
+  };
+
+  const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
+    event.preventDefault();
+    if (value.id === "0") {
+      add({
+        id: Math.random().toString(),
+        text: value.text.trim(),
+        status: "Pending",
+      });
+    } else {
+      edit(value.id, {
+        ...value,
+        text: value.text.trim(),
+      });
+    }
+    setValue({ text: "", id: "0", status: "Pending" });
+  };
+
+  const previous = () => {
+    setCurrPage((prev) => prev - 1);
+  };
+
+  const next = () => {
+    setCurrPage((prev) => prev + 1);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
+    <div className="w-full max-w-5xl items-center m-auto border-sky-50 border-2 p-10 bg-black text-slate-50 h-full mt-12 rounded-md">
+      <form className="flex gap-2 mb-4" onSubmit={handleSubmit}>
+        <Input
+          type="text"
+          placeholder="Enter todo text"
+          onChange={(e) => setValue({ ...value, text: e?.target.value })}
+          value={value?.text}
         />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <Button type="submit" disabled={!value?.text.trim()}>
+          {value.id === "0" ? "Add" : "Edit"}
+        </Button>
+      </form>
+      {data.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={data.map((item) => item.id)}
+            strategy={verticalListSortingStrategy}
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">MOVE</TableHead>
+                  <TableHead className="w-[100px]">ID</TableHead>
+                  <TableHead>List</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Complete</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data
+                  .slice(currPage * 10 - 10, currPage * 10)
+                  .map((item, index) => (
+                    <SortableItem key={item.id} id={item.id}>
+                      <TableCell className="font-medium">
+                        {currPage === 1 ? "" : currPage - 1}
+                        {index + 1}
+                      </TableCell>
+                      <TableCell
+                        className={`${
+                          item.status === "Success" ? "line-through" : ""
+                        } first-letter:capitalize`}
+                      >
+                        {item.text}
+                      </TableCell>
+                      <TableCell
+                        className={`text-lg ${
+                          item.status === "Pending"
+                            ? "text-red-700"
+                            : "text-green-700"
+                        }`}
+                      >
+                        {item.status}
+                      </TableCell>
+                      <TableCell>
+                        <Checkbox
+                          className="border-white"
+                          checked={item.status !== "Pending"}
+                          onClick={() => {
+                            edit(item.id, {
+                              id: item.id,
+                              text: item.text,
+                              status: (item.status === "Pending"
+                                ? "Success"
+                                : "Pending") as TodoStatus,
+                            });
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="hover:bg-blue-500 hover:border-blue-800"
+                          onClick={() => {
+                            console.log(item, "item");
+                            setValue({ ...item });
+                          }}
+                        >
+                          <Edit2Icon className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="hover:bg-red-500 hover:border-red-800"
+                          onClick={() => remove(item.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </SortableItem>
+                  ))}
+              </TableBody>
+            </Table>
+          </SortableContext>
+        </DndContext>
+      )}
+      {totalpage > 1 && (
+        <CustomPagination
+          total={totalpage}
+          currPage={currPage}
+          previous={previous}
+          next={next}
+        />
+      )}
     </div>
   );
 }
